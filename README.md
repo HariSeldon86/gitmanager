@@ -35,7 +35,7 @@ REPO "https://github.com/user/repo.git" [BRANCH "branch_name"] [PATH "./destinat
 ```
 
 - **REPO**: (Required) The Git repository URL.
-- **BRANCH**: (Optional) The specific branch to clone. Defaults to `HEAD` (default branch) if omitted.
+- **BRANCH**: (Optional) The specific branch or tag to clone. Defaults to `HEAD` (default branch) if omitted.
 - **PATH**: (Optional) The local destination path. Defaults to `./<repo_name>` if omitted.
 - Lines starting with `#` are ignored.
 

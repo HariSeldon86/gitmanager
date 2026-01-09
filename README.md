@@ -39,18 +39,7 @@ REPO "https://github.com/user/repo.git" [BRANCH "branch_name"] [PATH "./destinat
 - **PATH**: (Optional) The local destination path. Defaults to `./<repo_name>` if omitted.
 - Lines starting with `#` are ignored.
 
-**Example:**
-```ini
-REPO "https://github.com/HariSeldon86/ai-gym-pt.git" BRANCH "main" PATH "./systems/ai-gym-pt"
-# This is a comment
-REPO "https://github.com/HariSeldon86/utils.git"
-```
 
 ## Output
 
-After execution, a `dependencies.txt` file is generated in the root directory, providing a snapshot of the workspace state:
-
-```text
-REPO "https://github.com/HariSeldon86/ai-gym-pt.git" BRANCH "main" PATH "./systems/ai-gym-pt"
-...
-```
+After execution, a `dependencies.txt` file is generated in the root directory, providing a snapshot of the workspace state.

@@ -2,7 +2,7 @@
 
 **GitManager** is a lightweight CLI tool designed to manage multi-repository workspaces. It automates the cloning of repositories defined in a configuration file and handles recursive dependencies.
 
-![structure](structure.png){width=400,height=400}
+![structure](structure.png)
 
 **Note**: This tool is currently in development and may have limitations or bugs. Use with caution.
 

@@ -43,7 +43,7 @@ static int dir_exists(const char *path) {
 static void add_job(const char *repo, const char *branch, const char *path) {
     if (jobList.count >= jobList.capacity) {
         size_t new_capacity = jobList.capacity == 0 ? 16 : jobList.capacity * 2;
-        Job *new_jobs = realloc(jobList.jobs, new_capacity * sizeof(Job));
+        Job *new_jobs = (Job *)realloc(jobList.jobs, new_capacity * sizeof(Job));
         if (!new_jobs) exit(1);
         jobList.jobs = new_jobs;
         jobList.capacity = new_capacity;
@@ -77,7 +77,7 @@ static char *extract_value(const char *line, const char *key) {
     if (!end_quote) return NULL;
 
     size_t len = (size_t)(end_quote - start_quote);
-    char *value = malloc(len + 1);
+    char *value = (char *)malloc(len + 1);
     if (value) {
         strncpy(value, start_quote, len);
         value[len] = '\0';
@@ -109,7 +109,7 @@ static void parse_config(const char *filename) {
             base = base ? base + 1 : repo;
             const char *dotgit = strstr(base, ".git");
             size_t len = dotgit ? (size_t)(dotgit - base) : strlen(base);
-            path = malloc(len + 3);
+            path = (char *)malloc(len + 3);
             if (path) {
                 sprintf(path, "./%.*s", (int)len, base);
             }
@@ -155,7 +155,7 @@ static void process_jobs(void) {
     }
 }
 
-int main(int argc, char * const argv[]) {
+int main(int argc, char * const * argv) {
     if (argc < 2 || strcmp(argv[1], "clone") != 0) return 1;
     parse_config("workspace.cfg");
     process_jobs();

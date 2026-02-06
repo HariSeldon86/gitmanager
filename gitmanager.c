@@ -40,7 +40,12 @@ int dir_exists(const char *path) {
 void add_job(const char *repo, const char *branch, const char *path) {
     if (jobList.count >= jobList.capacity) {
         size_t new_capacity = jobList.capacity == 0 ? 16 : jobList.capacity * 2;
-        jobList.jobs = realloc(jobList.jobs, new_capacity * sizeof(Job));
+        Job *new_jobs = realloc(jobList.jobs, new_capacity * sizeof(Job));
+        if (!new_jobs) {
+            fprintf(stderr, "Memory allocation failed\n");
+            exit(1);
+        }
+        jobList.jobs = new_jobs;
         jobList.capacity = new_capacity;
     }
 
@@ -50,28 +55,38 @@ void add_job(const char *repo, const char *branch, const char *path) {
     job->path = strdup(path);
 }
 
+// Free all allocated memory in the job list
+void free_jobs() {
+    for (size_t i = 0; i < jobList.count; i++) {
+        free(jobList.jobs[i].repo);
+        if (jobList.jobs[i].branch) free(jobList.jobs[i].branch);
+        free(jobList.jobs[i].path);
+    }
+    free(jobList.jobs);
+    jobList.jobs = NULL;
+    jobList.count = 0;
+    jobList.capacity = 0;
+}
+
 // Extract value for a key from a line
-// Returns newly allocated string or NULL if not found
 char *extract_value(const char *line, const char *key) {
     char *pos = strstr(line, key);
     if (!pos) return NULL;
 
-    // Move past Key
     pos += strlen(key);
-
-    // Find opening quote
     char *start_quote = strchr(pos, '"');
     if (!start_quote) return NULL;
-    start_quote++; // Move past quote
+    start_quote++; 
 
-    // Find closing quote
     char *end_quote = strchr(start_quote, '"');
     if (!end_quote) return NULL;
 
     size_t len = end_quote - start_quote;
     char *value = malloc(len + 1);
-    strncpy(value, start_quote, len);
-    value[len] = '\0';
+    if (value) {
+        strncpy(value, start_quote, len);
+        value[len] = '\0';
+    }
     return value;
 }
 
@@ -89,8 +104,6 @@ void parse_config(const char *filename) {
 
     while (fgets(line, sizeof(line), file)) {
         line_num++;
-
-        // Trim whitespace (simple approach) or just ignore lines starting with #
         char *p = line;
         while (*p == ' ' || *p == '\t') p++;
         
@@ -107,67 +120,55 @@ void parse_config(const char *filename) {
             continue;
         }
 
-        // Default path derivation
         if (!path) {
             char *base = strrchr(repo, '/');
-            if (base) base++; else base = repo;
-            
-            // remove .git if present
+            base = base ? base + 1 : repo;
             char *dotgit = strstr(base, ".git");
             size_t base_len = dotgit ? (size_t)(dotgit - base) : strlen(base);
-            
-            path = malloc(base_len + 3); // ./ + name + null
+            path = malloc(base_len + 3);
             sprintf(path, "./%.*s", (int)base_len, base);
         }
 
-        // Conflict Detection (Simple linear search)
-        int conflict = 0;
+        int is_duplicate = 0;
         for (size_t i = 0; i < jobList.count; i++) {
             if (strcmp(jobList.jobs[i].path, path) == 0) {
-                // Check if same repo/branch
                 int same_repo = strcmp(jobList.jobs[i].repo, repo) == 0;
-                int same_branch = 1;
-                if (extract_value)
-                if (branch && jobList.jobs[i].branch) {
+                int same_branch = 0;
+                
+                if (!branch && !jobList.jobs[i].branch) same_branch = 1;
+                else if (branch && jobList.jobs[i].branch) {
                     same_branch = strcmp(jobList.jobs[i].branch, branch) == 0;
-                } else if (branch || jobList.jobs[i].branch) {
-                    same_branch = 0; // One is null, other is not
                 }
 
                 if (!same_repo || !same_branch) {
                     fprintf(stderr, "Error: Conflict detected for path '%s'.\n", path);
                     exit(1);
-                } else {
-                    // Duplicate
-                    conflict = 1; 
                 }
+                is_duplicate = 1;
                 break;
             }
         }
 
-        if (!conflict) {
+        if (!is_duplicate) {
             add_job(repo, branch, path);
-        } else {
-             if (repo) free(repo);
-             if (branch) free(branch);
-             if (path) free(path);
         }
+        
+        free(repo);
+        if (branch) free(branch);
+        free(path);
     }
-
     fclose(file);
 }
 
 void process_jobs() {
     printf("Starting clone process...\n");
-    // Use an index loop because jobList might grow if we find dependencies
     for (size_t i = 0; i < jobList.count; i++) {
         Job *job = &jobList.jobs[i];
-        
         printf("---------------------------------------------------\n");
         printf("Processing [%zu/%zu] %s...\n", i + 1, jobList.count, job->path);
 
         if (dir_exists(job->path)) {
-            printf("Directory '%s' already exists. Checking for updates...\n", job->path);
+            printf("Directory '%s' already exists. Skipping clone.\n", job->path);
         } else {
             char command[MAX_LINE_LENGTH * 2];
             if (job->branch) {
@@ -177,29 +178,23 @@ void process_jobs() {
             }
             
             printf("Running: %s\n", command);
-            int ret = system(command);
-            if (ret != 0) {
-                fprintf(stderr, "Error: Command failed with code %d\n", ret);
+            if (system(command) != 0) {
+                fprintf(stderr, "Error: Clone failed for %s\n", job->repo);
                 exit(1);
             }
         }
 
-        // Check for dependencies.cfg
         char dep_path[MAX_PATH_LENGTH];
         snprintf(dep_path, sizeof(dep_path), "%s/dependencies.cfg", job->path);
         if (file_exists(dep_path)) {
-            printf("Found dependency file: %s\n", dep_path);
-            parse_config(dep_path); // This will append to jobList, keeping the loop going
+            parse_config(dep_path);
         }
     }
 }
 
 void save_dependencies() {
     FILE *f = fopen("dependencies.txt", "w");
-    if (!f) {
-        fprintf(stderr, "Error opening dependencies.txt for writing.\n");
-        return;
-    }
+    if (!f) return;
     
     for (size_t i = 0; i < jobList.count; i++) {
         fprintf(f, "REPO \"%s\" BRANCH \"%s\" PATH \"%s\"\n", 
@@ -207,32 +202,24 @@ void save_dependencies() {
             jobList.jobs[i].branch ? jobList.jobs[i].branch : "HEAD", 
             jobList.jobs[i].path);
     }
-    
     fclose(f);
-    printf("Saved to dependencies.txt\n");
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <command>\n", argv[0]);
-        printf("Commands:\n");
-        printf("  clone    Parse workspace.cfg and clone repositories.\n");
+    if (argc < 2 || strcmp(argv[1], "clone") != 0) {
+        printf("Usage: %s clone\n", argv[0]);
         return 1;
     }
 
-    if (strcmp(argv[1], "clone") == 0) {
-        if (!file_exists("workspace.cfg")) {
-            fprintf(stderr, "Error: workspace.cfg not found.\n");
-            return 1;
-        }
-        
-        parse_config("workspace.cfg");
-        process_jobs();
-        save_dependencies();
-    } else {
-        printf("Unknown command: %s\n", argv[1]);
+    if (!file_exists("workspace.cfg")) {
+        fprintf(stderr, "Error: workspace.cfg not found.\n");
         return 1;
     }
-
+    
+    parse_config("workspace.cfg");
+    process_jobs();
+    save_dependencies();
+    
+    free_jobs(); // Clean up memory before exiting
     return 0;
 }

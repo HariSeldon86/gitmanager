@@ -3,9 +3,6 @@ name: Build and Release
 on:
   release:
     types: [created]
-  pull_request: # Also run on PRs to catch errors early
-  push:
-    branches: [main]
 
 jobs:
   # Job 1: Static Analysis and Linting

@@ -15,8 +15,11 @@
 - **Lightweight**: Written in C for speed and portability, with no external runtime dependencies beyond Git.
 
 ## Installation
+### Option 1: Download Binaries
+Download the pre-compiled executable for your OS from the [Releases Page](https://github.com/HariSeldon86/gitmanager/releases).
 
-1. Compile the source code:
+### Option 2: Manual Compilation
+1. Compile the source code (e.g. for Windows):
    ```bash
    gcc gitmanager.c -o gitmanager.exe
    ```
@@ -24,17 +27,22 @@
 
 ## Usage
 
-Navigate to a folder containing a `workspace.cfg` file and run:
+GitManager includes a built-in help system. Run the tool to see available commands:
 
 ```bash
-gitmanager clone
+gitmanager help
 ```
+
+### Commands
+`clone`: Parses `workspace.cfg` and clones all listed repositories.
+
+`help`: Displays usage instructions and configuration syntax.
 
 ### Configuration Format
 
 Create a `workspace.cfg` (or `dependencies.cfg` in sub-repos) with the following syntax:
 
-```ini
+```ini,TOML
 REPO "https://github.com/user/repo.git" [BRANCH "branch_name"] [PATH "./destination/path"]
 ```
 
@@ -44,6 +52,22 @@ REPO "https://github.com/user/repo.git" [BRANCH "branch_name"] [PATH "./destinat
 - Lines starting with `#` are ignored.
 
 
-## Output
+### Output
 
 After execution, a `dependencies.txt` file is generated in the root directory, providing a snapshot of the workspace state.
+
+## Docker
+GitManager is also on [DockerHub](https://hub.docker.com/repository/docker/rennales/gitmanager/general).
+
+For an interactive shell with gitmanager and git pre-installed:
+
+```Bash
+docker run -it --rm -v ${PWD}:/workspace rennales/gitmanager:latest
+```
+
+Once inside, you can manually run `gitmanager clone` or standard `git` commands.
+
+## Requirements
+* Git: Must be installed in the environment (included in the Docker image).
+
+* Config: A `workspace.cfg` must exist in the execution directory.

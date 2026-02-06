@@ -3,8 +3,16 @@ name: CI - Lint and Build
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "**.c"
+      - "**.h"
+      - ".github/workflows/ci.yml" # run if the workflow itself changes
   pull_request:
     branches: [ "main" ]
+    paths:
+      - "**.c"
+      - "**.h"
+      - ".github/workflows/ci.yml" # run if the workflow itself changes
   workflow_dispatch: # This enables manual testing
 
 jobs:

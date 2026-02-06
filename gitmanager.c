@@ -19,15 +19,15 @@ typedef struct {
     size_t capacity;
 } JobList;
 
-JobList jobList = {NULL, 0, 0};
+static JobList jobList = {NULL, 0, 0};
 
-int is_safe_shell_char(char c) {
-    if (isalnum(c)) return 1;
+static int is_safe_shell_char(char c) {
+    if (isalnum((unsigned char)c)) return 1;
     if (strchr("./_:-@", c)) return 1;
     return 0;
 }
 
-int is_string_safe(const char *str) {
+static int is_string_safe(const char *str) {
     if (!str) return 1;
     for (int i = 0; str[i] != '\0'; i++) {
         if (!is_safe_shell_char(str[i])) return 0;
@@ -35,17 +35,12 @@ int is_string_safe(const char *str) {
     return 1;
 }
 
-int file_exists(const char *filename) {
-    struct stat buffer;
-    return (stat(filename, &buffer) == 0);
-}
-
-int dir_exists(const char *path) {
+static int dir_exists(const char *path) {
     struct stat info;
     return (stat(path, &info) == 0 && (info.st_mode & S_IFDIR));
 }
 
-void add_job(const char *repo, const char *branch, const char *path) {
+static void add_job(const char *repo, const char *branch, const char *path) {
     if (jobList.count >= jobList.capacity) {
         size_t new_capacity = jobList.capacity == 0 ? 16 : jobList.capacity * 2;
         Job *new_jobs = realloc(jobList.jobs, new_capacity * sizeof(Job));
@@ -60,7 +55,7 @@ void add_job(const char *repo, const char *branch, const char *path) {
     job->path = strdup(path);
 }
 
-void free_jobs() {
+static void free_jobs(void) {
     for (size_t i = 0; i < jobList.count; i++) {
         free(jobList.jobs[i].repo);
         if (jobList.jobs[i].branch) free(jobList.jobs[i].branch);
@@ -69,7 +64,7 @@ void free_jobs() {
     free(jobList.jobs);
 }
 
-char *extract_value(const char *line, const char *key) {
+static char *extract_value(const char *line, const char *key) {
     const char *pos = strstr(line, key);
     if (!pos) return NULL;
 
@@ -81,7 +76,7 @@ char *extract_value(const char *line, const char *key) {
     const char *end_quote = strchr(start_quote, '"');
     if (!end_quote) return NULL;
 
-    size_t len = end_quote - start_quote;
+    size_t len = (size_t)(end_quote - start_quote);
     char *value = malloc(len + 1);
     if (value) {
         strncpy(value, start_quote, len);
@@ -90,7 +85,7 @@ char *extract_value(const char *line, const char *key) {
     return value;
 }
 
-void parse_config(const char *filename) {
+static void parse_config(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (!file) return;
 
@@ -115,25 +110,33 @@ void parse_config(const char *filename) {
             const char *dotgit = strstr(base, ".git");
             size_t len = dotgit ? (size_t)(dotgit - base) : strlen(base);
             path = malloc(len + 3);
-            if (path) sprintf(path, "./%.*s", (int)len, base);
+            if (path) {
+                sprintf(path, "./%.*s", (int)len, base);
+            }
         }
 
         int duplicate = 0;
         if (path) {
             for (size_t i = 0; i < jobList.count; i++) {
                 if (strcmp(jobList.jobs[i].path, path) == 0) {
-                    duplicate = 1; break;
+                    duplicate = 1; 
+                    break;
                 }
             }
         }
 
-        if (!duplicate && path && repo) add_job(repo, branch, path);
-        free(repo); free(branch); free(path);
+        if (!duplicate && path) {
+            add_job(repo, branch, path);
+        }
+
+        free(repo); 
+        free(branch); 
+        free(path);
     }
     fclose(file);
 }
 
-void process_jobs() {
+static void process_jobs(void) {
     for (size_t i = 0; i < jobList.count; i++) {
         const Job *job = &jobList.jobs[i];
         if (dir_exists(job->path)) continue;

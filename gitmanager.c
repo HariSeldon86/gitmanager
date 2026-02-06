@@ -155,10 +155,41 @@ static void process_jobs(void) {
     }
 }
 
+static void print_help(const char *prog_name) {
+    printf("GitManager - A simple C dependency cloner\n\n");
+    printf("Usage: %s <command>\n\n", prog_name);
+    printf("Commands:\n");
+    printf("  clone    Parses 'workspace.cfg' and clones all listed repositories.\n");
+    printf("           It also recursively checks for 'dependencies.cfg' in sub-repos.\n");
+    printf("  help     Displays this help message.\n\n");
+    printf("Files:\n");
+    printf("  workspace.cfg     The main entry point for your repository list.\n");
+    printf("  dependencies.txt  Generated after a successful clone, listing all processed repos.\n");
+}
+
 int main(int argc, char * const * argv) {
-    if (argc < 2 || strcmp(argv[1], "clone") != 0) return 1;
-    parse_config("workspace.cfg");
-    process_jobs();
-    free_jobs();
-    return 0;
+    // If no arguments or 'help' is requested, show instructions
+    if (argc < 2 || strcmp(argv[1], "help") == 0) {
+        print_help(argv[0]);
+        return 0;
+    }
+
+    if (strcmp(argv[1], "clone") == 0) {
+        // Your code already checks for the existence of workspace.cfg
+        FILE *check = fopen("workspace.cfg", "r");
+        if (!check) {
+            fprintf(stderr, "Error: 'workspace.cfg' not found in the current directory.\n");
+            return 1;
+        }
+        fclose(check);
+
+        parse_config("workspace.cfg"); //
+        process_jobs();               //
+        free_jobs();                  //
+        return 0;
+    }
+
+    fprintf(stderr, "Unknown command: %s\n", argv[1]);
+    print_help(argv[0]);
+    return 1;
 }

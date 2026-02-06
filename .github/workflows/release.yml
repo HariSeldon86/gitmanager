@@ -58,3 +58,42 @@ jobs:
           files: ${{ matrix.artifact_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Temporary storage so the Docker job can find the Linux file
+      - name: Share Linux Binary for Docker
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binary
+          path: gitmanager-linux
+
+# Job 3: Create Docker Image (Only runs if build passes)
+  docker:
+    name: Build and Push Docker Image
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Retrieve the binary created in the matrix job
+      - name: Download Linux Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binary
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/gitmanager:latest
+            ${{ secrets.DOCKER_USERNAME }}/gitmanager:${{ github.event.release.tag_name || 'latest' }}

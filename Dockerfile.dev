@@ -1,0 +1,19 @@
+ARG BUILDPLATFORM=linux/amd64
+FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
+
+# Install dependencies needed for gitmanager.c logic
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download the x86_64 binary produced by your release action
+# use "https://github.com/HariSeldon86/gitmanager/releases/latest/download/gitmanager-linux" to get the latest
+# use "https://github.com/HariSeldon86/gitmanager/releases/download/v3.1/gitmanager-linux" to get a specific version, e.g. v3.1
+RUN curl -fL "https://github.com/HariSeldon86/gitmanager/releases/download/v3.1/gitmanager-linux" \
+    -o /usr/local/bin/gitmanager \
+    && chmod +x /usr/local/bin/gitmanager
+
+# gitmanager.c expects to run in a directory with workspace.cfg
+WORKDIR /workspace

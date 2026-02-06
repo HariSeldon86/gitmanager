@@ -1,0 +1,14 @@
+ARG BUILDPLATFORM=linux/amd64
+FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
+
+# Install git since gitmanager.c uses system("git clone ...")
+RUN apt-get update && apt-get install -y \
+    git \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# COPY the binary directly from the GitHub runner's local disk
+COPY gitmanager-linux /usr/local/bin/gitmanager
+RUN chmod +x /usr/local/bin/gitmanager
+
+WORKDIR /workspace

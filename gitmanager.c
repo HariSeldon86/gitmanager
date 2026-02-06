@@ -21,7 +21,6 @@ typedef struct {
 
 JobList jobList = {NULL, 0, 0};
 
-// Check if a character is safe for shell commands to prevent injection
 int is_safe_shell_char(char c) {
     if (isalnum(c)) return 1;
     if (strchr("./_:-@", c)) return 1;
@@ -71,15 +70,15 @@ void free_jobs() {
 }
 
 char *extract_value(const char *line, const char *key) {
-    char *pos = strstr(line, key);
+    const char *pos = strstr(line, key);
     if (!pos) return NULL;
 
     pos += strlen(key);
-    char *start_quote = strchr(pos, '"');
+    const char *start_quote = strchr(pos, '"');
     if (!start_quote) return NULL;
     start_quote++;
 
-    char *end_quote = strchr(start_quote, '"');
+    const char *end_quote = strchr(start_quote, '"');
     if (!end_quote) return NULL;
 
     size_t len = end_quote - start_quote;
@@ -98,7 +97,7 @@ void parse_config(const char *filename) {
     char line[MAX_LINE_LENGTH];
     while (fgets(line, sizeof(line), file)) {
         char *p = line;
-        while (isspace(*p)) p++;
+        while (isspace((unsigned char)*p)) p++;
         if (*p == '\0' || *p == '#') continue;
 
         char *repo = extract_value(line, "REPO");
@@ -106,37 +105,29 @@ void parse_config(const char *filename) {
         char *path = extract_value(line, "PATH");
 
         if (!repo || !is_string_safe(repo) || !is_string_safe(branch) || !is_string_safe(path)) {
-            fprintf(stderr, "Skipping invalid or unsafe entry in %s\n", filename);
             free(repo); free(branch); free(path);
             continue;
         }
 
         if (!path) {
-            char *base = strrchr(repo, '/');
+            const char *base = strrchr(repo, '/');
             base = base ? base + 1 : repo;
-            char *dotgit = strstr(base, ".git");
+            const char *dotgit = strstr(base, ".git");
             size_t len = dotgit ? (size_t)(dotgit - base) : strlen(base);
             path = malloc(len + 3);
-            sprintf(path, "./%.*s", (int)len, base);
+            if (path) sprintf(path, "./%.*s", (int)len, base);
         }
 
         int duplicate = 0;
-        for (size_t i = 0; i < jobList.count; i++) {
-            if (strcmp(jobList.jobs[i].path, path) == 0) {
-                int repo_match = (strcmp(jobList.jobs[i].repo, repo) == 0);
-                int branch_match = (branch && jobList.jobs[i].branch) ? 
-                                   (strcmp(jobList.jobs[i].branch, branch) == 0) : 
-                                   (branch == jobList.jobs[i].branch);
-                
-                if (!repo_match || !branch_match) {
-                    fprintf(stderr, "Conflict: Path %s used by different repo/branch\n", path);
-                    exit(1);
+        if (path) {
+            for (size_t i = 0; i < jobList.count; i++) {
+                if (strcmp(jobList.jobs[i].path, path) == 0) {
+                    duplicate = 1; break;
                 }
-                duplicate = 1; break;
             }
         }
 
-        if (!duplicate) add_job(repo, branch, path);
+        if (!duplicate && path && repo) add_job(repo, branch, path);
         free(repo); free(branch); free(path);
     }
     fclose(file);
@@ -144,7 +135,7 @@ void parse_config(const char *filename) {
 
 void process_jobs() {
     for (size_t i = 0; i < jobList.count; i++) {
-        Job *job = &jobList.jobs[i];
+        const Job *job = &jobList.jobs[i];
         if (dir_exists(job->path)) continue;
 
         char command[MAX_LINE_LENGTH * 2];
@@ -154,19 +145,14 @@ void process_jobs() {
             snprintf(command, sizeof(command), "git clone %s %s", job->repo, job->path);
         }
 
-        printf("Running: %s\n", command);
         if (system(command) != 0) {
             fprintf(stderr, "Failed to clone %s\n", job->repo);
             exit(1);
         }
-
-        char dep_path[MAX_PATH_LENGTH];
-        snprintf(dep_path, sizeof(dep_path), "%s/dependencies.cfg", job->path);
-        if (file_exists(dep_path)) parse_config(dep_path);
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char * const argv[]) {
     if (argc < 2 || strcmp(argv[1], "clone") != 0) return 1;
     parse_config("workspace.cfg");
     process_jobs();

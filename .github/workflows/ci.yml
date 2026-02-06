@@ -21,8 +21,9 @@ jobs:
           sudo apt-get install -y cppcheck
 
       - name: Static Analysis (Lint)
-        # Checks for memory leaks and undefined behavior
-        run: cppcheck --enable=all --error-exitcode=1 gitmanager.c
+        # Added --suppress=missingIncludeSystem to ignore the header errors
+        # and --quiet to only show actual bugs/style issues
+        run: cppcheck --enable=all --suppress=missingIncludeSystem --quiet --error-exitcode=1 gitmanager.c
 
       - name: Build Binary
         # -Wall -Wextra -Werror treats warnings as errors to keep code high quality

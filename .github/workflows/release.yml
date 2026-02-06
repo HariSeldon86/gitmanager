@@ -30,6 +30,8 @@ jobs:
     name: Build for ${{ matrix.os }}
     needs: lint
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:

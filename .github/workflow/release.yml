@@ -1,0 +1,58 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+  pull_request: # Also run on PRs to catch errors early
+  push:
+    branches: [main]
+
+jobs:
+  # Job 1: Static Analysis and Linting
+  lint:
+    name: Lint and Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Cppcheck
+        run: sudo apt-get install -y cppcheck
+
+      - name: Run Static Analysis
+        # --error-exitcode=1 ensures the job fails if bugs are found
+        run: cppcheck --enable=all --error-exitcode=1 gitmanager.c
+
+      - name: Test Compilation (Strict)
+        # -Wall -Wextra -Werror treats all warnings as errors
+        run: gcc -Wall -Wextra -Werror gitmanager.c -o validation_test
+
+  # Job 2: Multi-platform Build (Only runs if lint passes)
+  build:
+    name: Build for ${{ matrix.os }}
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: gitmanager-linux
+          - os: macos-latest
+            artifact_name: gitmanager-macos
+          - os: windows-latest
+            artifact_name: gitmanager-windows.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compile
+        run: gcc gitmanager.c -o ${{ matrix.artifact_name }}
+
+      - name: Upload Release Asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

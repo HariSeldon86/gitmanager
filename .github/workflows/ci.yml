@@ -1,0 +1,37 @@
+name: CI - Lint and Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    name: Ubuntu CI
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Static Analysis (Lint)
+        # Checks for memory leaks and undefined behavior
+        run: cppcheck --enable=all --error-exitcode=1 gitmanager.c
+
+      - name: Build Binary
+        # -Wall -Wextra -Werror treats warnings as errors to keep code high quality
+        run: gcc -Wall -Wextra -Werror gitmanager.c -o gitmanager
+
+      - name: Upload Artifact
+        # This saves the compiled binary as a downloadable file in the Action run
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitmanager-ubuntu-latest
+          path: gitmanager
+          retention-days: 5
